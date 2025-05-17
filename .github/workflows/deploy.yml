@@ -6,7 +6,7 @@ on:
 
 env:
   WORK_DIR: /opt/bots/gbc_duty
-  SERVICE_NAME: gbc_duty.service
+  SERVICE_NAME: roms_gbc_duty.service
   REPO_BRANCH: main
 
 jobs:
