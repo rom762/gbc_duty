@@ -15,11 +15,10 @@ logger.debug(f"File exists: {env_path.exists()}")
 
 
 class JiraSettings(BaseSettings):
-    username: SecretStr = Field(..., env='USERNAME', alias='JIRA_USERNAME')
-    password: SecretStr = Field(..., env='PASSWORD', alias='JIRA_PASSWORD')
+    username: str = Field(..., env='USERNAME', alias='JIRA_USERNAME')
+    password: str = Field(..., env='PASSWORD', alias='JIRA_PASSWORD')
     url: str = Field(..., env='URL', alias='JIRA_URL')
     search_string: str = '(("EXT System / Service" in ("Система Внутренних Списков", Anti-Fraud, Collection, "Collection CA", "Credit Scoring", "Data Verification", "Система принятия решений", "Автоматизированная cистема управления операционными рисками", "Система управления лимитами", "Система противодействия внутреннему мошенничеству", "Система противодействия мошенничеству", "Автоматизированная cистема управления операционными рисками", "Автоматизированная система управления операционными рисками") OR "EXT System / Service" in ("Anti Money Laundering") AND project in ("ROSBANK Support", "Почта Банк Support", "МТС Банк Support", "Банк Открытие Support") OR project in ("RTDM Support") AND labels = support) AND status not in (Closed, Resolved) AND (labels != nomon OR labels is EMPTY)) and (status = "open" or assignee is EMPTY)'
-    # search_string: str = 'key in (LTBEXT-2977, MKBEXT-70)'
     model_config = SettingsConfigDict(env_file=env_path, extra="ignore")
 
 
@@ -27,6 +26,7 @@ class TelegramSettings(BaseSettings):
     """Telegram bot settings"""
     telegram_bot_token: str = Field(..., env="TELEGRAM_BOT_TOKEN")
     telegram_admin_chat_id: Optional[int] = Field(None, env="TELEGRAM_ADMIN_CHAT_ID")
+    telegram_default_reminder_period: int = Field(30, env='TELEGRAM_DEFAULT_REMINDER_PERIOD')
 
     model_config = SettingsConfigDict(env_file=env_path, extra="allow")
 
