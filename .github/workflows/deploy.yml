@@ -1,0 +1,43 @@
+name: Простое развертывание на VPS
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  WORK_DIR: /opt/bots/gbc_duty
+  SERVICE_NAME: gbc_duty.service
+  REPO_BRANCH: main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Получение кода
+        uses: actions/checkout@v3
+
+      - name: Настройка SSH доступа
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Выполнение развертывания
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+            echo '1/5 → Подключение к серверу...'
+            cd '$WORK_DIR' || { echo 'Ошибка: Не удалось перейти в директорию'; exit 1; }
+
+            echo '2/5 → Загрузка изменений из репозитория...'
+            git pull origin '$REPO_BRANCH' || { echo 'Ошибка: Не удалось обновить код'; exit 1; }
+
+            echo '3/5 → Установка зависимостей...'
+            source .venv/bin/activate || { echo 'Ошибка: Не удалось активировать venv'; exit 1; }
+            uv pip install -r requirements.txt || { echo 'Ошибка: Не удалось установить зависимости'; exit 1; }
+            deactivate
+
+            echo '4/5 → Перезапуск сервиса...'
+            sudo systemctl restart '$SERVICE_NAME' || { echo 'Ошибка: Не удалось перезапустить сервис'; exit 1; }
+
+            echo '5/5 ✓ Развертывание завершено!'
+          "
