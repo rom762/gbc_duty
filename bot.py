@@ -92,7 +92,7 @@ async def get_issues(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         user_request = ", ".join(update.message.text.lower().split()[1:])
         search_string = f"key in ({user_request})"
         message = etl(mode='check', search_string=search_string)
-        await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
+        await update.message.reply_text(message, parse_mode=ParseMode.HTML)
 
     except Exception as e:
         logger.error(f'Failed to get issues for {update.effective_chat.id} by request: {update.message.text}')
