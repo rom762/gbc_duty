@@ -24,7 +24,7 @@ jobs:
 
       - name: Выполнение развертывания
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} -p {{ secrets.SSH_PORT }} "
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} -p ${{ secrets.SSH_PORT }} "
             echo '1/5 → Подключение к серверу...'
             cd '$WORK_DIR' || { echo 'Ошибка: Не удалось перейти в директорию'; exit 1; }
 
