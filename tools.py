@@ -72,7 +72,7 @@ def etl(search_string: str = settings.jira.search_string, mode: str = 'broadcast
         if issues_to_send:
             message = prepare_message(issues_to_send)
         else:
-            message = f'No tracks to pay attention!'
+            message = f'No tracks to pay attention!!!'
     return message
 
 
