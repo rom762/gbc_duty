@@ -46,7 +46,7 @@ def prepare_message(tracks: List[JiraIssue]) -> str:
                 msg += f"Elapsed Time: {track.fields.customfield_12671.ongoingCycle.elapsedTime.friendly}\n"
                 msg += f"Time remaining: {track.fields.customfield_12671.ongoingCycle.remainingTime.friendly}\n"
             except Exception as e:
-                msg += f"NO SLA set for this track\n"
+                msg += f"NO SLA set for this track!\n"
             msg += f"\n\n"
     return msg
 
