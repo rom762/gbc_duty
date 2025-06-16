@@ -184,6 +184,26 @@ async def get_jobs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logging.debug(f'GET JOBS MESSAGE: {message}')
     await update.message.reply_text(text=message, parse_mode=ParseMode.HTML)
 
+async def duty_zen(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = '''
+    Дневные дежурства в рабочее время
+    Цель: дневной дежурный отвечает за соблюдение SLA Time to first response для всех треков в статусе Open.
+
+Реализация: дневной дежурный назначается сроком на 1 неделю.
+Обязанности:
+
+1. Проверять папку unassigned не реже одного раза в 30 минут.
+2. При появлении нового трека - взять в работу, если позволяет загрузка и специализация.
+3. Если загрузка и специализация не позволяют, связаться с профильным тим лидом, который примет решение на кого назначить трек. 
+               Определение профильного тим лида:
+               а) по трекам в спейсах LTBEXT/RSBEXT/BOT и System/Service AML/Anti-Fraud - Сергей
+               б) GPBEXT - Тимофей, INGSEXT - Антон-Сергей, VBREXT- Ярослав, LMREXT - Тимофей-Антон, в остальных случаях - Айнур
+4. Проследить, чтобы трек был взят в работу (назначен Assignee, статус - In progress). Если Time to first response < 1 часа, следует самостоятельно перевести трек в статус  In progress.
+5. Продолжать следить за треком до перевода трека в статус In progress.
+6. В случае невозможности исполнять обязанности (пропал доступ к Jira, заболел и т.д.) сообщить руководителю отдела.
+7. Просроченные TTFR учитываются дежурившему при расчёте бонусной части ЗП
+    '''
+    await update.message.reply_text(text=message, parse_mode=ParseMode.MARKDOWN)
 
 # Add handlers
 application.add_handler(CommandHandler("start", start_command))
@@ -194,6 +214,7 @@ application.add_handler(CommandHandler("get", get_issues))
 application.add_handler(CommandHandler("set", set_timer))
 application.add_handler(CommandHandler("unset", unset_timer))
 application.add_handler(CommandHandler("jobs", get_jobs))
+application.add_handler(CommandHandler("zen", duty_zen))
 
 
 def start_bot():
