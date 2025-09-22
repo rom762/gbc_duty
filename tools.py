@@ -79,19 +79,21 @@ def etl(search_string: str = settings.jira.search_string, mode: str = 'broadcast
 if __name__ == '__main__':
     # интересно посмотреть на расчет времени в выходные.
     logging.debug(f'username:{settings.jira.username}, password: {settings.jira.password}')
-    jql_string = 'key in (LTBEXT-3040)'
+    # jql_string = 'key in (LTBEXT-3040)'
     # jql_string = 'status not in (Closed, Resolved) and (assignee = roman.nikulin)'
     # jql_string = '(("EXT System / Service" in ("Система Внутренних Списков", Anti-Fraud, Collection, "Collection CA", "Credit Scoring", "Data Verification", "Система принятия решений", "Автоматизированная cистема управления операционными рисками", "Система управления лимитами", "Система противодействия внутреннему мошенничеству", "Система противодействия мошенничеству", "Автоматизированная cистема управления операционными рисками", "Автоматизированная система управления операционными рисками") OR "EXT System / Service" in ("Anti Money Laundering") AND project in ("ROSBANK Support", "Почта Банк Support", "МТС Банк Support", "Банк Открытие Support") OR project in ("RTDM Support") AND labels = support) AND status not in (Closed, Resolved) AND (labels != nomon OR labels is EMPTY))'
-    json_data = check_issues(jql_str=jql_string)
-    pprint(json_data, indent=4)
-    issues = parse_jira_issues(json_data)
+    jql_string = '(("EXT System / Service" in ("Система Внутренних Списков", Anti-Fraud, Collection, "Collection CA", "Credit Scoring", "Data Verification", "Система принятия решений", "Автоматизированная cистема управления операционными рисками", "Система управления лимитами", "Система противодействия внутреннему мошенничеству", "Система противодействия мошенничеству", "Автоматизированная cистема управления операционными рисками", "Автоматизированная система управления операционными рисками") OR "EXT System / Service" in ("Anti Money Laundering") AND project in ("ROSBANK Support", "Почта Банк Support", "OTP Bank Support", "МТС Банк Support", "Банк Открытие Support", "Ак Барс Support", "Банк СОЮЗ Support") OR project in ("RTDM Support") AND labels = support) AND status not in (Closed, Resolved) AND (labels != nomon OR labels is EMPTY))'
+    # json_data = check_issues(jql_str=jql_string)
+    # pprint(json_data, indent=4)
+    # issues = parse_jira_issues(json_data)
     # print(len(issues))
-    message = prepare_message(issues)
+    # message = prepare_message(issues)
+    message = etl(jql_string, mode='check')
     print(message)
     print('-'*100)
-    filename = datetime.strftime(datetime.now(), '%Y%m%d_%H%M%S')
-    with open(os.path.join(os.getcwd(), 'json', f'{filename}.json'), 'w') as ff:
-        json.dump(obj=json_data, fp=ff, ensure_ascii=False, indent=4)
+    # filename = datetime.strftime(datetime.now(), '%Y%m%d_%H%M%S')
+    # with open(os.path.join(os.getcwd(), 'json', f'{filename}.json'), 'w') as ff:
+    #     json.dump(obj=json_data, fp=ff, ensure_ascii=False, indent=4)
 
     sys.exit()
 

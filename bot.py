@@ -38,6 +38,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 /stop - отписаться от всех уведомлений сразу
 /check - посмотреть какие треки в Open and Unassigned
 /get <ltbetx-2977> - посмотреть конкретный трек
+/zen - обязанности дежурного
 """
     await update.message.reply_text(text=msg, parse_mode=ParseMode.MARKDOWN)
 
