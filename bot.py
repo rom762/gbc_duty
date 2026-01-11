@@ -118,7 +118,8 @@ async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if interval < 0:
             await update.effective_message.reply_text("Sorry we can not go back to future!")
             return
-
+        elif interval < 600:
+            interval = 600
         job_name = f'{chat_id}_send_updates_{interval}'
         job_removed = remove_job_if_exists(str(chat_id), context)
 
@@ -160,18 +161,6 @@ async def send_updates(context: ContextTypes.DEFAULT_TYPE):
     await broadcast_reminder(broadcast_message=message)
 
 
-# Create application
-logger.info("Initializing Telegram bot...")
-application = Application.builder().token(settings.telegram.telegram_bot_token).build()
-
-# Create Queue
-# общую очередь останавливаем теперь у каждого юзера своя
-# job_queue = application.job_queue
-# job_queue.run_repeating(
-#     callback=send_updates,
-#     interval=timedelta(minutes=settings.telegram.telegram_default_reminder_period)
-# )
-
 async def get_jobs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         current_jobs = context.job_queue.jobs()
@@ -205,6 +194,10 @@ async def duty_zen(update: Update, context: ContextTypes.DEFAULT_TYPE):
 7. Просроченные TTFR учитываются дежурившему при расчёте бонусной части ЗП
     '''
     await update.message.reply_text(text=message, parse_mode=ParseMode.MARKDOWN)
+
+# Create application
+logger.info("Initializing Telegram bot...")
+application = Application.builder().token(settings.telegram.telegram_bot_token).build()
 
 # Add handlers
 application.add_handler(CommandHandler("start", start_command))
