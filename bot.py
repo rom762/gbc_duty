@@ -186,8 +186,15 @@ async def duty_zen(update: Update, context: ContextTypes.DEFAULT_TYPE):
 2. При появлении нового трека - взять в работу, если позволяет загрузка и специализация.
 3. Если загрузка и специализация не позволяют, связаться с профильным тим лидом, который примет решение на кого назначить трек. 
                Определение профильного тим лида:
-               а) по трекам в спейсах LTBEXT/RSBEXT/BOT и System/Service AML/Anti-Fraud - Сергей
-               б) GPBEXT - Тимофей, INGSEXT - Антон-Сергей, VBREXT- Ярослав, LMREXT - Тимофей-Антон, в остальных случаях - Айнур
+               AKBREXT, System/Service AML/Anti-Fraud - Сергей-Роман
+               BOTEXT, RSBEXT - Иван
+               LTBEXT - Семён
+               GPBEXT - Тимофей
+               INGSEXT - Антон-Сергей
+               VBREXT, LOKOBEXT, EUBEXT (databorn Jira) - Ярослав
+               LMREXT, OTP - Тимофей-Антон
+               MKBEXT, SZGEXT, AVOEXT (databorn Jira), MTSBEXT - Марат-Айнур-Роман-Тимофей
+               
 4. Проследить, чтобы трек был взят в работу (назначен Assignee, статус - In progress). Если Time to first response < 1 часа, следует самостоятельно перевести трек в статус  In progress.
 5. Продолжать следить за треком до перевода трека в статус In progress.
 6. В случае невозможности исполнять обязанности (пропал доступ к Jira, заболел и т.д.) сообщить руководителю отдела.
