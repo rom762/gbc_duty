@@ -1,12 +1,13 @@
 import logging
 from datetime import datetime, timedelta
+from typing import Dict, Optional
 
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 from config import settings
-from tools import etl
+from tools import etl, get_my_issues, check_personal_track_changes, format_my_issue_message, check_sla_warning
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -15,6 +16,9 @@ logger = logging.getLogger(__name__)
 logging.debug(f"Telegram bot token: {settings.telegram.telegram_bot_token}")
 
 user_chat_ids = set()
+
+# Personal track monitoring state: chat_id -> None (not yet init) | {issue_key -> {status, sla_warned}}
+my_watch_state: Dict[int, Optional[Dict]] = {}
 
 async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send the alarm message."""
@@ -33,12 +37,17 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /help command"""
     msg = """
-/set <seconds> - подписаться на обновления о новых треках 
+/set <seconds> - подписаться на обновления о новых треках
 /unset <seconds> - отписаться от уведомлений каждые <seconds>
 /stop - отписаться от всех уведомлений сразу
 /check - посмотреть какие треки в Open and Unassigned
 /get <ltbetx-2977> - посмотреть конкретный трек
 /zen - обязанности дежурного
+
+Мои треки:
+/mywatch [seconds] - следить за своими треками (изменения статуса, SLA)
+/myunwatch - остановить слежку за своими треками
+/mycheck - разовая проверка своих активных треков
 """
     await update.message.reply_text(text=msg, parse_mode=ParseMode.MARKDOWN)
 
@@ -202,6 +211,85 @@ async def duty_zen(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''
     await update.message.reply_text(text=message, parse_mode=ParseMode.MARKDOWN)
 
+async def mywatch_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Periodic job: check personal tracks for status changes and SLA warnings."""
+    chat_id = context.job.chat_id
+    try:
+        current_issues = get_my_issues()
+        prev_states = my_watch_state.get(chat_id)  # None = first run
+
+        notifications, new_states = check_personal_track_changes(
+            current_issues,
+            prev_states,
+            sla_warn_ms=settings.telegram.sla_warning_threshold_ms,
+        )
+        my_watch_state[chat_id] = new_states
+
+        for msg in notifications:
+            await context.bot.send_message(chat_id=chat_id, text=msg, parse_mode=ParseMode.HTML)
+    except Exception as e:
+        logger.error(f"mywatch_job failed for {chat_id}: {e}")
+
+
+async def mywatch_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /mywatch [seconds] — start monitoring personal tracks."""
+    chat_id = update.effective_message.chat_id
+    try:
+        interval = int(context.args[0]) if context.args else settings.telegram.my_watch_default_interval
+        if interval < 60:
+            interval = 60
+
+        job_name = f'{chat_id}_mywatch'
+        remove_job_if_exists(job_name, context)
+        my_watch_state[chat_id] = None  # force re-init on restart
+
+        context.job_queue.run_repeating(
+            callback=mywatch_job,
+            interval=timedelta(seconds=interval),
+            chat_id=chat_id,
+            name=job_name,
+            first=0,
+        )
+        await update.effective_message.reply_text(
+            f"Слежу за вашими треками каждые {interval} сек.\n"
+            f"Уведомлю при изменении статуса или когда SLA менее {settings.telegram.sla_warning_threshold_ms // 60000} мин."
+        )
+    except (IndexError, ValueError):
+        await update.effective_message.reply_text("Использование: /mywatch [seconds]")
+
+
+async def myunwatch_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /myunwatch — stop monitoring personal tracks."""
+    chat_id = update.message.chat_id
+    job_name = f'{chat_id}_mywatch'
+    removed = remove_job_if_exists(job_name, context)
+    my_watch_state.pop(chat_id, None)
+    if removed:
+        await update.message.reply_text("Перестал следить за вашими треками.")
+    else:
+        await update.message.reply_text("Слежка не была запущена.")
+
+
+async def mycheck_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /mycheck — one-shot view of personal active tracks."""
+    try:
+        issues = get_my_issues()
+        if not issues:
+            await update.message.reply_text("Нет активных треков, назначенных на вас.")
+            return
+
+        parts = []
+        for issue in issues:
+            has_warning = check_sla_warning(issue, settings.telegram.sla_warning_threshold_ms)
+            event = 'sla_warning' if has_warning else 'current'
+            parts.append(format_my_issue_message(issue, event))
+
+        await update.message.reply_text('\n\n'.join(parts), parse_mode=ParseMode.HTML)
+    except Exception as e:
+        logger.error(f"mycheck failed for {update.effective_chat.id}: {e}")
+        await update.message.reply_text("Ошибка при получении треков. Проверьте логи.")
+
+
 # Create application
 logger.info("Initializing Telegram bot...")
 application = Application.builder().token(settings.telegram.telegram_bot_token).build()
@@ -216,6 +304,9 @@ application.add_handler(CommandHandler("set", set_timer))
 application.add_handler(CommandHandler("unset", unset_timer))
 application.add_handler(CommandHandler("jobs", get_jobs))
 application.add_handler(CommandHandler("zen", duty_zen))
+application.add_handler(CommandHandler("mywatch", mywatch_command))
+application.add_handler(CommandHandler("myunwatch", myunwatch_command))
+application.add_handler(CommandHandler("mycheck", mycheck_command))
 
 
 def start_bot():

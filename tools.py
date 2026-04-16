@@ -1,3 +1,4 @@
+import html
 import os
 import sys
 from datetime import datetime
@@ -5,7 +6,7 @@ from pprint import pprint
 
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from jira import JIRA
 
@@ -74,6 +75,122 @@ def etl(search_string: str = settings.jira.search_string, mode: str = 'broadcast
         else:
             message = f'No tracks to pay attention!!!'
     return message
+
+
+def get_my_issues(assignee: str = None) -> List[JiraIssue]:
+    """Get issues assigned to the given user (defaults to configured jira username)."""
+    if assignee is None:
+        assignee = settings.jira.username
+    jql = f'assignee = "{assignee}" AND status not in (Closed, Resolved) ORDER BY updated DESC'
+    data = check_issues(jql_str=jql)
+    return parse_jira_issues(data)
+
+
+def check_sla_warning(issue: JiraIssue, threshold_ms: int) -> bool:
+    """Return True if the issue's TTFR SLA is ongoing and remaining time is below threshold."""
+    try:
+        cycle = issue.fields.customfield_12671.ongoingCycle
+        if cycle and 0 < cycle.remainingTime.millis < threshold_ms:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def format_my_issue_message(issue: JiraIssue, event: str, prev_status: str = None) -> str:
+    """
+    Format an HTML notification message for a personal track event.
+
+    event values:
+      'new'              — трек только что назначен
+      'status_inprogress'— статус изменился на In Progress
+      'status_changed'   — любое другое изменение статуса
+      'sla_warning'      — SLA скоро истечёт
+      'current'          — текущее состояние (для /mycheck)
+    """
+    jira_base = 'https://jira.glowbyteconsulting.com/browse'
+    key = issue.key
+    summary = html.escape(issue.fields.summary)
+    status = html.escape(issue.fields.status.name)
+    link = f'<a href="{jira_base}/{key}">{key}</a>'
+
+    sla_part = ''
+    try:
+        cycle = issue.fields.customfield_12671.ongoingCycle
+        if cycle:
+            remaining = html.escape(cycle.remainingTime.friendly)
+            goal = html.escape(cycle.goalDuration.friendly)
+            sla_part = f'\nSLA: {remaining} / {goal}'
+    except Exception:
+        pass
+
+    if event == 'new':
+        header = f'📋 <b>Новый трек назначен:</b> {link}'
+        body = f'{summary}\nСтатус: {status}'
+    elif event == 'status_inprogress':
+        header = f'✅ <b>Взят в работу:</b> {link}'
+        prev = html.escape(prev_status) if prev_status else '?'
+        body = f'{summary}\n{prev} → <b>{status}</b>'
+    elif event == 'status_changed':
+        header = f'🔄 <b>Статус изменился:</b> {link}'
+        prev = html.escape(prev_status) if prev_status else '?'
+        body = f'{summary}\n{prev} → <b>{status}</b>'
+    elif event == 'sla_warning':
+        header = f'⚠️ <b>SLA скоро истечёт:</b> {link}'
+        body = f'{summary}\nСтатус: {status}'
+    else:  # 'current'
+        header = f'{link}'
+        body = f'{summary}\nСтатус: {status}'
+
+    return f'{header}\n{body}{sla_part}'
+
+
+def check_personal_track_changes(
+    current_issues: List[JiraIssue],
+    previous_states: Dict[str, Dict],
+    sla_warn_ms: int,
+) -> Tuple[List[str], Dict[str, Dict]]:
+    """
+    Compare current issues against stored state.
+    Returns (notifications, updated_state).
+    If previous_states is None (first run) — returns no notifications, only initialised state.
+    """
+    is_first_run = previous_states is None
+    prev = previous_states or {}
+    notifications: List[str] = []
+    new_states: Dict[str, Dict] = {}
+
+    for issue in current_issues:
+        key = issue.key
+        current_status = issue.fields.status.name
+        issue_prev = prev.get(key)
+
+        if is_first_run or issue_prev is None:
+            # Just initialise — no notifications on first sight
+            sla_warned = False
+        else:
+            prev_status = issue_prev['status']
+            sla_warned = issue_prev.get('sla_warned', False)
+
+            # Status change
+            if prev_status != current_status:
+                if current_status.lower() == 'in progress':
+                    event = 'status_inprogress'
+                else:
+                    event = 'status_changed'
+                notifications.append(format_my_issue_message(issue, event, prev_status))
+
+            # SLA warning (fire once per breach window)
+            if check_sla_warning(issue, sla_warn_ms):
+                if not sla_warned:
+                    notifications.append(format_my_issue_message(issue, 'sla_warning'))
+                    sla_warned = True
+            else:
+                sla_warned = False  # reset if SLA recovered or not applicable
+
+        new_states[key] = {'status': current_status, 'sla_warned': sla_warned}
+
+    return notifications, new_states
 
 
 if __name__ == '__main__':

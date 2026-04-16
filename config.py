@@ -29,6 +29,8 @@ class TelegramSettings(BaseSettings):
     telegram_bot_token: str = Field(..., env="TELEGRAM_BOT_TOKEN")
     telegram_admin_chat_id: Optional[int] = Field(None, env="TELEGRAM_ADMIN_CHAT_ID")
     telegram_default_reminder_period: int = Field(30, env='TELEGRAM_DEFAULT_REMINDER_PERIOD')
+    sla_warning_threshold_ms: int = Field(3600000, env='SLA_WARNING_THRESHOLD_MS')
+    my_watch_default_interval: int = Field(300, env='MY_WATCH_DEFAULT_INTERVAL')
 
     model_config = SettingsConfigDict(env_file=env_path, extra="allow")
 
