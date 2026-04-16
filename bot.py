@@ -284,7 +284,17 @@ async def mycheck_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             event = 'sla_warning' if has_warning else 'current'
             parts.append(format_my_issue_message(issue, event))
 
-        await update.message.reply_text('\n\n'.join(parts), parse_mode=ParseMode.HTML)
+        # Telegram limit is 4096 chars — split into chunks
+        chunk, chunk_len = [], 0
+        for part in parts:
+            part_len = len(part) + 2  # +2 for '\n\n'
+            if chunk and chunk_len + part_len > 4000:
+                await update.message.reply_text('\n\n'.join(chunk), parse_mode=ParseMode.HTML)
+                chunk, chunk_len = [], 0
+            chunk.append(part)
+            chunk_len += part_len
+        if chunk:
+            await update.message.reply_text('\n\n'.join(chunk), parse_mode=ParseMode.HTML)
     except Exception as e:
         logger.error(f"mycheck failed for {update.effective_chat.id}: {e}")
         await update.message.reply_text("Ошибка при получении треков. Проверьте логи.")
