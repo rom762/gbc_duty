@@ -81,7 +81,7 @@ def get_my_issues(assignee: str = None) -> List[JiraIssue]:
     """Get issues assigned to the given user (defaults to configured jira username)."""
     if assignee is None:
         assignee = settings.jira.username
-    jql = f'assignee = "{assignee}" AND status not in (Closed, Resolved) ORDER BY updated DESC'
+    jql = f'assignee = "{assignee}" AND status not in (Closed, Resolved) AND project != RTDMSUP ORDER BY updated DESC'
     data = check_issues(jql_str=jql)
     return parse_jira_issues(data)
 
