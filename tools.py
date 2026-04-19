@@ -115,14 +115,26 @@ def format_my_issue_message(issue: JiraIssue, event: str, prev_status: str = Non
     link = f'<a href="{jira_base}/{key}">{key}</a>'
 
     sla_part = ''
-    try:
-        cycle = issue.fields.customfield_12671.ongoingCycle
-        if cycle:
+    for sla_field, sla_name in (
+        (issue.fields.customfield_12671, 'TTFR'),
+        (issue.fields.customfield_12670, 'SLA'),
+    ):
+        try:
+            cycle = sla_field.ongoingCycle if sla_field else None
+            if not cycle:
+                continue
             remaining = html.escape(cycle.remainingTime.friendly)
             goal = html.escape(cycle.goalDuration.friendly)
-            sla_part = f'\nSLA: {remaining} / {goal}'
-    except Exception:
-        pass
+            elapsed = html.escape(cycle.elapsedTime.friendly)
+            line = f'\n{sla_name}: осталось <b>{remaining}</b> / цель {goal} (прошло {elapsed})'
+            if cycle.breached:
+                line += ' ❌ <b>нарушен</b>'
+            elif cycle.breachTime:
+                breach = html.escape(cycle.breachTime.friendly)
+                line += f' · дедлайн {breach}'
+            sla_part += line
+        except Exception:
+            pass
 
     if event == 'new':
         header = f'📋 <b>Новый трек назначен:</b> {link}'
