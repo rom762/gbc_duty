@@ -126,12 +126,13 @@ def format_my_issue_message(issue: JiraIssue, event: str, prev_status: str = Non
             remaining = html.escape(cycle.remainingTime.friendly)
             goal = html.escape(cycle.goalDuration.friendly)
             elapsed = html.escape(cycle.elapsedTime.friendly)
-            line = f'\n{sla_name}: осталось <b>{remaining}</b> / цель {goal} (прошло {elapsed})'
             if cycle.breached:
-                line += ' ❌ <b>нарушен</b>'
-            elif cycle.breachTime:
-                breach = html.escape(cycle.breachTime.friendly)
-                line += f' · дедлайн {breach}'
+                line = f'\n{sla_name}: ❌ <b>просрочен на {remaining}</b> / цель {goal} (прошло {elapsed})'
+            else:
+                line = f'\n{sla_name}: ✅ осталось <b>{remaining}</b> / цель {goal} (прошло {elapsed})'
+                if cycle.breachTime:
+                    breach = html.escape(cycle.breachTime.friendly)
+                    line += f' · дедлайн {breach}'
             sla_part += line
         except Exception:
             pass
