@@ -32,9 +32,7 @@ jobs:
             git pull origin '$REPO_BRANCH' || { echo 'Ошибка: Не удалось обновить код'; exit 1; }
 
             echo '3/5 → Установка зависимостей...'
-            source .venv/bin/activate || { echo 'Ошибка: Не удалось активировать venv'; exit 1; }
-            uv pip install -r requirements.txt || { echo 'Ошибка: Не удалось установить зависимости'; exit 1; }
-            deactivate
+            ~/.local/bin/uv sync || { echo 'Ошибка: Не удалось установить зависимости'; exit 1; }
 
             echo '4/5 → Перезапуск сервиса...'
             sudo systemctl restart '$SERVICE_NAME' || { echo 'Ошибка: Не удалось перезапустить сервис'; exit 1; }
