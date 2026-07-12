@@ -97,6 +97,40 @@ def check_sla_warning(issue: JiraIssue, threshold_ms: int) -> bool:
     return False
 
 
+def get_issue_comments(issue_key: str) -> List[Any]:
+    """Fetch all comments for an issue via a dedicated Jira REST call."""
+    try:
+        return jira.comments(issue_key)
+    except Exception as e:
+        logging.error(f'Failed to fetch comments for {issue_key}: {e}')
+        return []
+
+
+def _is_own_comment(comment: Any) -> bool:
+    """True if the comment was authored by the account the bot runs under (avoid self-notify)."""
+    author = getattr(comment, 'author', None)
+    if not author:
+        return False
+    me = settings.jira.username.lower()
+    name = (getattr(author, 'name', '') or '').lower()
+    email = (getattr(author, 'emailAddress', '') or '').lower()
+    return me in (name, email)
+
+
+def format_comment_message(issue: JiraIssue, comment: Any) -> str:
+    """Format an HTML notification for a new comment on a personal track."""
+    jira_base = 'https://jira.glowbyteconsulting.com/browse'
+    key = issue.key
+    link = f'<a href="{jira_base}/{key}">{key}</a>'
+    summary = html.escape(issue.fields.summary)
+    author = html.escape(getattr(comment.author, 'displayName', 'Неизвестный автор'))
+    body = comment.body or ''
+    if len(body) > 500:
+        body = body[:500] + '…'
+    body = html.escape(body)
+    return f'💬 <b>Новый комментарий:</b> {link}\n{summary}\n<b>{author}:</b>\n{body}'
+
+
 def format_my_issue_message(issue: JiraIssue, event: str, prev_status: str = None) -> str:
     """
     Format an HTML notification message for a personal track event.
@@ -178,6 +212,9 @@ def check_personal_track_changes(
         current_status = issue.fields.status.name
         issue_prev = prev.get(key)
 
+        comments = get_issue_comments(key)
+        latest_comment_id = comments[-1].id if comments else None
+
         if is_first_run or issue_prev is None:
             # Just initialise — no notifications on first sight
             sla_warned = False
@@ -201,7 +238,22 @@ def check_personal_track_changes(
             else:
                 sla_warned = False  # reset if SLA recovered or not applicable
 
-        new_states[key] = {'status': current_status, 'sla_warned': sla_warned}
+            # New comments since last check
+            prev_comment_id = issue_prev.get('last_comment_id')
+            if prev_comment_id is not None and comments:
+                try:
+                    new_comments = [c for c in comments if int(c.id) > int(prev_comment_id)]
+                except ValueError:
+                    new_comments = [comments[-1]] if latest_comment_id != prev_comment_id else []
+                for c in new_comments:
+                    if not _is_own_comment(c):
+                        notifications.append(format_comment_message(issue, c))
+
+        new_states[key] = {
+            'status': current_status,
+            'sla_warned': sla_warned,
+            'last_comment_id': latest_comment_id,
+        }
 
     return notifications, new_states
 

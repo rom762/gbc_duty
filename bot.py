@@ -45,7 +45,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 /zen - обязанности дежурного
 
 Мои треки:
-/mywatch [seconds] - следить за своими треками (изменения статуса, SLA)
+/mywatch [seconds] - следить за своими треками (изменения статуса, SLA, новые комментарии)
 /myunwatch - остановить слежку за своими треками
 /mycheck - разовая проверка своих активных треков
 """
@@ -252,7 +252,8 @@ async def mywatch_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         await update.effective_message.reply_text(
             f"Слежу за вашими треками каждые {interval} сек.\n"
-            f"Уведомлю при изменении статуса или когда SLA менее {settings.telegram.sla_warning_threshold_ms // 60000} мин."
+            f"Уведомлю при изменении статуса, новых комментариях "
+            f"или когда SLA менее {settings.telegram.sla_warning_threshold_ms // 60000} мин."
         )
     except (IndexError, ValueError):
         await update.effective_message.reply_text("Использование: /mywatch [seconds]")
